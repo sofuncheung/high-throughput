@@ -1,0 +1,73 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jul 13 16:36:42 2017
+高通量计算 自动化VASP计算脚本
+@author: sofuncheung
+"""
+import os
+import time
+
+'''
+弛豫过程
+'''
+submit = open('submitrelax_10_nodes','w')
+submit.write('#!/bin/bash\nexport LD_LIBRARY_PATH=/vol6/intel_composer_xe_2013.0.079_lib:$LD_LIBRARY_PATH\nyhrun -p TH_SR1 -N10 -n120 /vol6/home/xuben/bin/vasp')
+submit.close()
+
+os.system('copy %s %s' % ('INCAR_relax', 'INCAR'))
+batch()
+
+#def sleeptime(hour,min,sec):
+#    return hour*3600 + min*60 + sec;
+
+inteval = 60 
+while True:
+    time.sleep(inteval)
+    if convergetest() == 1:
+        os.system('copy %s %s' % ('CONTCAR', 'POSCAR'))
+        os.system('copy %s %s' % ('INCAR_static', 'INCAR'))
+        batch()
+    elif convergetest() == 0:
+        os.system('copy %s %s' % ('CONTCAR', 'POSCAR'))
+        batch()
+    
+
+
+'''
+计算精度不够，需要把CONTCAR 换成 POSCAR 继续计算
+'''
+
+
+
+'''
+函数区
+'''
+def batch():        
+    os.system('yhbatch -p TH_SR1 -N10 -n120 submitrelax_10_nodes')
+    return None 
+
+'''
+检查是否应该进行下一步计算
+'''
+def convergetest():
+    outcar = open('OUTCAR','r')
+    if 'Voluntary context switches:' in outcar.readlines()[-1]:
+        return 1
+        outcar.close()
+    else:
+        for fil in os.listdir(os.getcwd()):  
+            if 'slurm' in fil: 
+                slurmfile = fil
+                break
+        slurm = open(slurmfile,'r')
+        if 'and continue' in slurm.readlines()[-1]:
+            return 0
+        elif 'error' in slurm.readlines()[-1]:
+            return 'Error'
+        slurm.close()
+'''
+定时执行程序
+'''
+
+
+            
